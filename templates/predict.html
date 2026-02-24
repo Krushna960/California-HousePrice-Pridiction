@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Predict House Price - California House Price Prediction</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+  <div class="page">
+    <nav class="navbar">
+      <div class="nav-container">
+        <a href="/" class="nav-logo">
+          <span class="logo-icon">🏠</span>
+          <span>HousePrice AI</span>
+        </a>
+        <div class="nav-links">
+          <a href="/" class="nav-link">Home</a>
+          <a href="/predict" class="nav-link active">Predict</a>
+          <a href="/about" class="nav-link">About</a>
+        </div>
+      </div>
+    </nav>
+
+    <main class="main">
+      <header class="page-header">
+        <h1>Predict House Price</h1>
+        <p>Enter property details below to get an instant price estimate</p>
+      </header>
+
+      {% if not model_loaded %}
+      <div class="alert alert-warning" role="alert">
+        <strong>⚠️ Model Not Loaded</strong><br />
+        Run <code>main.py</code> once to train and save the model, then restart this app.
+      </div>
+      {% endif %}
+
+      {% if prediction is defined and prediction is not none %}
+      <div class="result-card">
+        <div class="result-icon">✨</div>
+        <h2>Estimated Price</h2>
+        <p class="result-value">₹ {{ "{:,.0f}".format(prediction_inr) }}</p>
+        <p class="result-sub">≈ ${{ "{:,.0f}".format(prediction) }} USD</p>
+        <button onclick="resetForm()" class="btn btn-secondary btn-small">Predict Another</button>
+      </div>
+      {% endif %}
+
+      <section class="card form-section">
+        <h2>Property Details</h2>
+        <form action="/api/predict" method="post" class="prediction-form" id="predictForm">
+          <div class="form-grid">
+            <div class="field">
+              <label for="longitude">Longitude</label>
+              <input type="text" id="longitude" name="longitude" placeholder="e.g. -122.25" required
+                     value="{{ form_data.longitude if form_data is defined and form_data else '' }}" />
+              <small class="field-hint">West coast: negative values</small>
+            </div>
+            <div class="field">
+              <label for="latitude">Latitude</label>
+              <input type="text" id="latitude" name="latitude" placeholder="e.g. 37.85" required
+                     value="{{ form_data.latitude if form_data is defined and form_data else '' }}" />
+              <small class="field-hint">California range: 32-42</small>
+            </div>
+            <div class="field">
+              <label for="housing_median_age">Housing Median Age</label>
+              <input type="number" id="housing_median_age" name="housing_median_age" min="0" step="1" placeholder="e.g. 25" required
+                     value="{{ form_data.housing_median_age if form_data is defined and form_data else '' }}" />
+              <small class="field-hint">Years</small>
+            </div>
+            <div class="field">
+              <label for="total_rooms">Total Rooms</label>
+              <input type="number" id="total_rooms" name="total_rooms" min="0" step="1" placeholder="e.g. 1500" required
+                     value="{{ form_data.total_rooms if form_data is defined and form_data else '' }}" />
+            </div>
+            <div class="field">
+              <label for="total_bedrooms">Total Bedrooms</label>
+              <input type="number" id="total_bedrooms" name="total_bedrooms" min="0" step="1" placeholder="e.g. 300" required
+                     value="{{ form_data.total_bedrooms if form_data is defined and form_data else '' }}" />
+            </div>
+            <div class="field">
+              <label for="population">Population</label>
+              <input type="number" id="population" name="population" min="0" step="1" placeholder="e.g. 1200" required
+                     value="{{ form_data.population if form_data is defined and form_data else '' }}" />
+            </div>
+            <div class="field">
+              <label for="households">Households</label>
+              <input type="number" id="households" name="households" min="0" step="1" placeholder="e.g. 400" required
+                     value="{{ form_data.households if form_data is defined and form_data else '' }}" />
+            </div>
+            <div class="field">
+              <label for="median_income">Median Income</label>
+              <input type="text" id="median_income" name="median_income" placeholder="e.g. 5.5" required
+                     value="{{ form_data.median_income if form_data is defined and form_data else '' }}" />
+              <small class="field-hint">Scale: typically 0.5 - 15</small>
+            </div>
+            <div class="field field-full">
+              <label for="ocean_proximity">Ocean Proximity</label>
+              <select id="ocean_proximity" name="ocean_proximity" required>
+                <option value="">Select proximity type...</option>
+                <option value="<1H OCEAN" {{ 'selected' if form_data is defined and form_data and form_data.ocean_proximity == '<1H OCEAN' else '' }}>&lt;1H OCEAN</option>
+                <option value="INLAND" {{ 'selected' if form_data is defined and form_data and form_data.ocean_proximity == 'INLAND' else '' }}>INLAND</option>
+                <option value="NEAR BAY" {{ 'selected' if form_data is defined and form_data and form_data.ocean_proximity == 'NEAR BAY' else '' }}>NEAR BAY</option>
+                <option value="NEAR OCEAN" {{ 'selected' if form_data is defined and form_data and form_data.ocean_proximity == 'NEAR OCEAN' else '' }}>NEAR OCEAN</option>
+                <option value="ISLAND" {{ 'selected' if form_data is defined and form_data and form_data.ocean_proximity == 'ISLAND' else '' }}>ISLAND</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="submitBtn">
+              <span id="btnText">Get Price Estimate</span>
+              <span id="btnSpinner" class="spinner" style="display: none;"></span>
+            </button>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>California House Price Prediction · Powered by Machine Learning</p>
+      <div class="footer-links">
+        <a href="/">Home</a>
+        <a href="/predict">Predict</a>
+        <a href="/about">About</a>
+      </div>
+    </footer>
+  </div>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
